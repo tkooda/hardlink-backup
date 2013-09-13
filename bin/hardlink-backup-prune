@@ -12,8 +12,8 @@ while /bin/df --sync -P -B 1M |awk '/^\/dev\/sdb1/{if($4< '${KEEP_FREE_MB}' )pri
   echo "pruning backups.."
   for y in `seq 2010 2020`; do
     for m in `seq -w 1 12`; do
-      for d in ar circ ; do
-        path="/disk1/backup/linear/$d"
+      for d in FIXME ; do
+        path="/disk1/backup/linear/$d" # FIXME
         cd ${path} || exit
         c=`/bin/ls -1d ${y}-${m}-* 2>/dev/null |wc -l`
         [ $c -gt 1 ] || continue # save at least one per month
