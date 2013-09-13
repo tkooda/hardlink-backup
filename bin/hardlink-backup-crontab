@@ -1,0 +1,59 @@
+#!/bin/bash
+
+## tkooda : 2010-05-13 : e.g. crontab:
+# 05 */4 * * *  PATH=$PATH:/usr/local/sbin/ hardlink-backup-crontab /disk0/backup/ periodic
+# 20 03  * * *  PATH=$PATH:/usr/local/sbin/ hardlink-backup-crontab /disk0/backup/ day
+# 21 03  * * 1  PATH=$PATH:/usr/local/sbin/ hardlink-backup-crontab /disk0/backup/ week
+# 22 03  1 * *  PATH=$PATH:/usr/local/sbin/ hardlink-backup-crontab /disk0/backup/ month
+# 23 03  1 1 *  PATH=$PATH:/usr/local/sbin/ hardlink-backup-crontab /disk0/backup/ year
+
+
+[ $# -ge 2 ] || { echo "usage: ${0} <backup dir> <interval>" >&2; exit 2; }
+
+dir_backup="${1}"
+interval="${2}"
+
+# require host/ and log/ subdirs..
+for i in host; do
+  d="${dir_backup}/${i}"
+  [ -d "${d}" ] || { echo "ERROR: backup dir missing subdir: ${d}" >&2; exit 3; }
+done
+
+
+case "${interval}" in
+  manual|periodic|hour|day|week|month|year)
+    for dir_host in ${dir_backup}/host/*; do
+      
+      dir_snap="${dir_host}/snapshot"
+      if [ ! -d "${dir_snap}" ]; then
+        echo "warning: skipping invalid host dir with missing snapshot dir: ${dir_host}" >&2
+        continue
+      fi
+      
+      dir_log="${dir_host}/log"
+      if [ ! -d "${dir_log}" ]; then
+        echo "warning: skipping invalid host dir with missing log dir: ${dir_host}" >&2
+        continue
+      fi
+      
+      file_pref="${dir_host}/ROTATE_`echo ${interval} |tr '[a-z]' '[A-Z]'`"
+      count_desired="`grep '^[0-9]*$' ${file_pref} 2>/dev/null |head -n1`"
+      if [ -z "${count_desired}" -o "${count_desired}" == "0" ]; then
+        echo "debug: skipping interval '${interval}' for host '${dir_host}' (${count_desired})"
+        continue
+      fi
+      
+      setlock -n "${dir_host}/.lock" /bin/true 2>/dev/null \
+        || echo "warning: pausing for existing backup to complete: ${dir_host}"
+      setlock "${dir_host}/.lock" \
+        hardlink-backup-host "${interval}" "${count_desired}" "${dir_host}" \
+          | svlogd -t "${dir_log}"
+    done
+    ;;
+  
+  *)
+    echo "ERROR: invalid interval: ${interval}"
+    exit 2
+    ;;
+esac
+

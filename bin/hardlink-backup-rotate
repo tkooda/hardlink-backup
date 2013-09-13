@@ -1,0 +1,50 @@
+#!/bin/bash
+
+[ $# -ge 3 ] || { echo "usage: ${0} <interval> <count> <dir..>"; exit 2; }
+
+interval="${1}"
+count="${2//[^0-9]/}" # integers only
+shift
+shift
+
+[ -n "${count}" ] || { echo "rotate: ERROR: invald count: ${2}"; exit 2; }
+
+case "${interval}" in
+  manual|periodic|hour|day|week|month|year)
+    for dir_host in "${@}"; do
+      dir_snap="${dir_host}/snapshot"
+      if [ ! -d "${dir_snap}" ]; then
+        echo "rotate: warning: skipping invalid host dir: ${dir_host}"
+        continue
+      fi
+      secs_before="`date +%s`"
+      disk_before="`df -kP "${dir_snap}" |awk '/^\//{print $3}'`"
+      for i in `seq 1 ${count} |sort -nr`; do # will be blank on $count<1
+        dir_dest="${dir_host}/${interval}.${i}"
+        dir_src="${dir_host}/${interval}.$(( ${i} - 1 ))"
+        if [ -e "${dir_dest}" ]; then
+          echo "rotate: info: removing: ${dir_dest}"
+          rm -rf "${dir_dest}"
+        fi
+        if [ ! -e "${dir_src}" ]; then
+#          echo "rotate: warning: cannot rotate nonexistant: ${dir_src}"
+          continue
+        fi
+        echo "rotate: info: rotating: '${dir_src}' to '${dir_dest}'"
+        mv "${dir_src}" "${dir_dest}"
+      done
+      echo "rotate: info: copying: '${dir_snap}' to '${dir_src}'"
+      cp -al "${dir_snap}" "${dir_src}"
+      sync
+      secs_after="`date +%s`"
+      disk_after="`df -kP "${dir_snap}" |awk '/^\//{print $3}'`"
+      echo "rotate: info: elapsed: $(( ${secs_after} - ${secs_before} )) seconds"
+      echo "rotate: info: consumed: $(( ${disk_after} - ${disk_before} )) kilobytes"
+    done
+    ;;
+  *)
+    echo "ERROR: invalid interval: ${interval}"
+    exit 2
+    ;;
+esac
+

@@ -1,0 +1,29 @@
+#!/bin/bash
+
+## tkooda : 2012-01-09 : prune old backups
+
+exit # fix
+
+
+KEEP_FREE_MB="10240" # WARNING: do not increase too much or you'll loose too many backups!
+
+while /bin/df --sync -P -B 1M |awk '/^\/dev\/sdb1/{if($4< '${KEEP_FREE_MB}' )print $0}' |grep .. ; do
+  date
+  echo "pruning backups.."
+  for y in `seq 2010 2020`; do
+    for m in `seq -w 1 12`; do
+      for d in ar circ ; do
+        path="/disk1/backup/linear/$d"
+        cd ${path} || exit
+        c=`/bin/ls -1d ${y}-${m}-* 2>/dev/null |wc -l`
+        [ $c -gt 1 ] || continue # save at least one per month
+        echo "pruning: $(( $c - 1 )) dirs from: $d $y-$m"
+        /bin/rm -rf `/bin/ls -1d ${y}-${m}-* 2>/dev/null |tail -n$(( $c - 1 ))`
+        break 3 # sleep and then do df check again
+      done
+    done
+  done
+  echo sleeping..
+  sleep 5
+done
+
