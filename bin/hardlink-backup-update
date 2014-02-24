@@ -2,6 +2,7 @@
 
 ## tkooda : 2013-04-19 : finally rewrote this
 
+
 function bail {
   echo -e "$1"
   exit 1
@@ -14,53 +15,61 @@ function bail {
 host_dir="${1}"
 host="${host_dir##*/}"
 
-ssh_user="`cut -d'#' -f1 ${host_dir}/BACKUP_SSH_USER 2>/dev/null |head -n1`"
+
+## checks..
+
+[ -d "${host_dir}" ] || bail "Error: '${host_dir}' isn't an existing directory"
+
+ssh_user="`cut -d'#' -f1 ${host_dir}/SSH_USER 2>/dev/null |head -n1`"
 if [ -z "${ssh_user}" ]; then
   ssh_user="root"
 fi
 
-base_dir="`cut -d'#' -f1 ${host_dir}/BASE_DIR 2>/dev/null |head -n1`"
-if [ -z "${base_dir}" ]; then
-  base_dir="/"
+ssh_port="`cut -d'#' -f1 ${host_dir}/SSH_PORT 2>/dev/null |grep '^[0-9]\+$' |head -1`" || bail "Error: invalid port"
+if [ -n "${ssh_port}" ]; then
+  args_port="-p ${ssh_port}"
 fi
 
-## OLD:
-#dir_dest="${2}"
-#
-#rsync --quiet --archive --relative --delete --force --numeric-ids "${dir_src}" "${dir_dest}"
-
-[ -d "${host_dir}" ] || bail "Error: '${host_dir}' isn't an existing directory"
-
-port="`cut -d'#' -f1 ${host_dir}/PORT 2>/dev/null |grep '^[0-9]\+$' |head -1`" || bail "Error: invalid port"
-if [ -n "${port}" ]; then
-  port_cmd="-p ${port}"
+if [ -f "${host_dir}/id_dsa" ]; then
+  ssh_key="${host_dir}/id_dsa"
+elif [ -f "${host_dir}/id_rsa" ]; then
+  ssh_key="${host_dir}/id_rsa"
+else
+  echo "ERROR: no SSH key found for host '${host}'"
+  exit 2
 fi
 
 
 # check for valid host..
 fping -q "${host}" || bail "Error: cannot ping '${host}'"
 
+
 start=`date +%s`
 echo "pulling: ${host}"
-rsync \
-  --quiet \
-  --archive \
-  --relative \
-  -e "ssh -o UserKnownHostsFile=${host_dir}/known_hosts -i ${host_dir}/id_dsa ${port_cmd}" \
-  --delete \
-  --delete-excluded \
-  --force \
-  --numeric-ids \
-  --exclude="/dev" \
-  --exclude="/proc" \
-  --exclude="/selinux" \
-  --exclude="/sys" \
-  --exclude-from="${host_dir}/PATTERN_EXCLUDE" \
-  "${ssh_user}@${host}:${base_dir}" \
-  "${host_dir}/snapshot/"
 
 ## tkooda : 2013-05-10 : update timestamp on directory
 touch "${host_dir}/snapshot/"
+
+
+for d in `cut -d'#' -f1 "${host_dir}/DIRS_INCLUDE"`; do # allow hash-comments on the line, must escape/wildcard dirs with spaces per bash for-loop
+  ssh_src="${ssh_user}@${host}:${d}"
+  echo "syncing: ${ssh_src}"
+  rsync \
+    --quiet \
+    --archive \
+    --relative \
+    -e "ssh -o UserKnownHostsFile=${host_dir}/known_hosts -i ${ssh_key} ${args_port}" \
+    --delete \
+    --delete-excluded \
+    --force \
+    --numeric-ids \
+    --exclude="/dev" \
+    --exclude="/proc" \
+    --exclude="/selinux" \
+    --exclude="/sys" \
+    "${ssh_src}" \
+    "${host_dir}/snapshot/"
+done
 
 stop=`date +%s`
 echo "pulled: ${host} : $(( $stop - $start )) seconds"
