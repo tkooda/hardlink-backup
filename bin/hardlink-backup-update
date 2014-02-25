@@ -48,20 +48,21 @@ start=`date +%s`
 echo "pulling: ${host}"
 
 
-setlock -n "${host_dir}/.lock" /bin/true 2>/dev/null \
-  || echo "warning: pausing for existing backup to complete: ${host_dir}"
+#setlock -n "${host_dir}/.lock" /bin/true 2>/dev/null \
+#  || echo "warning: pausing for existing backup to complete: ${host_dir}" # test lock
+#setlock "${host_dir}/.lock" /bin/true # pause for lock
 
 
 ## tkooda : 2013-05-10 : update timestamp on directory
 touch "${host_dir}/snapshot/"
 
 
-set -f # disable globbing to allow asterisks in DIRS_INCLUDE file
-for d in `cut -d'#' -f1 "${host_dir}/DIRS_INCLUDE"`; do # allow hash-comments on the line, must escape/wildcard dirs with spaces per bash for-loop ; WARNING: be sure to "\*" escape asterisks otherwise bash will resolve them locally!
+set -f # disable globbing to allow asterisks in PATHS_INCLUDE file
+for d in `cut -d'#' -f1 "${host_dir}/PATHS_INCLUDE"`; do # allow hash-comments on the line, must escape/wildcard dirs with spaces per bash for-loop ; WARNING: be sure to "\*" escape asterisks otherwise bash will resolve them locally!
   ssh_src="${ssh_user}@${host}:${d}"
   echo "syncing: ${ssh_src}"
 
-  setlock "${host_dir}/.lock" \
+#  setlock -n "${host_dir}/.lock" \
   rsync \
     --quiet \
     --archive \
@@ -76,7 +77,7 @@ for d in `cut -d'#' -f1 "${host_dir}/DIRS_INCLUDE"`; do # allow hash-comments on
     --exclude="/selinux" \
     --exclude="/sys" \
     "${ssh_src}" \
-    "${host_dir}/snapshot/"
+    "${host_dir}/snapshot/" 2>&1
 done
 
 stop=`date +%s`
