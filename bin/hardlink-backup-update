@@ -56,10 +56,11 @@ setlock -n "${host_dir}/.lock" /bin/true 2>/dev/null \
 touch "${host_dir}/snapshot/"
 
 
-setlock "${host_dir}/.lock" \
 for d in `cut -d'#' -f1 "${host_dir}/DIRS_INCLUDE"`; do # allow hash-comments on the line, must escape/wildcard dirs with spaces per bash for-loop
   ssh_src="${ssh_user}@${host}:${d}"
   echo "syncing: ${ssh_src}"
+
+  setlock "${host_dir}/.lock" \
   rsync \
     --quiet \
     --archive \
