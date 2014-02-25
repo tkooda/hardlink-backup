@@ -47,10 +47,16 @@ fping -q "${host}" || bail "Error: cannot ping '${host}'"
 start=`date +%s`
 echo "pulling: ${host}"
 
+
+setlock -n "${host_dir}/.lock" /bin/true 2>/dev/null \
+  || echo "warning: pausing for existing backup to complete: ${host_dir}"
+
+
 ## tkooda : 2013-05-10 : update timestamp on directory
 touch "${host_dir}/snapshot/"
 
 
+setlock "${host_dir}/.lock" \
 for d in `cut -d'#' -f1 "${host_dir}/DIRS_INCLUDE"`; do # allow hash-comments on the line, must escape/wildcard dirs with spaces per bash for-loop
   ssh_src="${ssh_user}@${host}:${d}"
   echo "syncing: ${ssh_src}"
