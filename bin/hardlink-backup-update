@@ -56,7 +56,8 @@ setlock -n "${host_dir}/.lock" /bin/true 2>/dev/null \
 touch "${host_dir}/snapshot/"
 
 
-for d in `cut -d'#' -f1 "${host_dir}/DIRS_INCLUDE"`; do # allow hash-comments on the line, must escape/wildcard dirs with spaces per bash for-loop
+set -f # disable globbing to allow asterisks in DIRS_INCLUDE file
+for d in `cut -d'#' -f1 "${host_dir}/DIRS_INCLUDE"`; do # allow hash-comments on the line, must escape/wildcard dirs with spaces per bash for-loop ; WARNING: be sure to "\*" escape asterisks otherwise bash will resolve them locally!
   ssh_src="${ssh_user}@${host}:${d}"
   echo "syncing: ${ssh_src}"
 
