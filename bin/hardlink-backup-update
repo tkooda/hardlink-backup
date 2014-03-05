@@ -54,6 +54,7 @@ echo "pulling: ${host}"
 
 
 ## tkooda : 2013-05-10 : update timestamp on directory
+[ -d "${host_dir}/snapshot/" ] || mkdir -p "${host_dir}/snapshot/"
 touch "${host_dir}/snapshot/"
 
 
