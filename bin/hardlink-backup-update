@@ -77,6 +77,8 @@ for d in `cut -d'#' -f1 "${host_dir}/PATHS_INCLUDE"`; do # allow hash-comments o
     --exclude="/proc" \
     --exclude="/selinux" \
     --exclude="/sys" \
+    --exclude=".gvfs" \
+    --exclude=".offlineimap" \
     "${ssh_src}" \
     "${host_dir}/snapshot/" 2>&1
 done
